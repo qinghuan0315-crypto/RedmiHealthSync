@@ -1,0 +1,49 @@
+workflows:
+  health-ios-testflight:
+    name: Health iOS - TestFlight IPA
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: App Store Connect
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.example.healthapp
+      vars:
+        XCODE_PROJECT: RedmiHealthSync/RedmiHealthSync.xcodeproj
+        XCODE_SCHEME: RedmiHealthSync
+      xcode: latest
+    scripts:
+      - name: Apply signing profiles
+        script: xcode-project use-profiles
+      - name: Build signed IPA
+        script: xcode-project build-ipa --project "$XCODE_PROJECT" --scheme "$XCODE_SCHEME"
+    artifacts:
+      - build/ios/ipa/*.ipa
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        submit_to_app_store: false
+
+  health-ios-development:
+    name: Health iOS - Registered Device IPA
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: App Store Connect
+    environment:
+      ios_signing:
+        distribution_type: development
+        bundle_identifier: com.example.healthapp
+      vars:
+        XCODE_PROJECT: RedmiHealthSync/RedmiHealthSync.xcodeproj
+        XCODE_SCHEME: RedmiHealthSync
+      xcode: latest
+    scripts:
+      - name: Apply signing profiles
+        script: xcode-project use-profiles
+      - name: Build signed IPA
+        script: xcode-project build-ipa --project "$XCODE_PROJECT" --scheme "$XCODE_SCHEME"
+    artifacts:
+      - build/ios/ipa/*.ipa
