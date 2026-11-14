@@ -1,49 +1,45 @@
-workflows:
-  health-ios-testflight:
-    name: Health iOS - TestFlight IPA
-    max_build_duration: 60
-    instance_type: mac_mini_m2
-    integrations:
-      app_store_connect: App Store Connect
-    environment:
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.qinghuan0315.redmihealthsync
-      vars:
-        XCODE_PROJECT: RedmiHealthSync/RedmiHealthSync.xcodeproj
-        XCODE_SCHEME: RedmiHealthSync
-      xcode: latest
-    scripts:
-      - name: Apply signing profiles
-        script: xcode-project use-profiles
-      - name: Build signed IPA
-        script: xcode-project build-ipa --project "$XCODE_PROJECT" --scheme "$XCODE_SCHEME"
-    artifacts:
-      - build/ios/ipa/*.ipa
-    publishing:
-      app_store_connect:
-        auth: integration
-        submit_to_testflight: true
-        submit_to_app_store: false
 
-  health-ios-development:
-    name: Health iOS - Registered Device IPA
-    max_build_duration: 60
+workflows:
+  redmihealthsync-unsigned:
+    name: RedmiHealthSync Unsigned IPA
     instance_type: mac_mini_m2
-    integrations:
-      app_store_connect: App Store Connect
+    max_build_duration: 60
+
     environment:
-      ios_signing:
-        distribution_type: development
-        bundle_identifier: com.example.healthapp
-      vars:
-        XCODE_PROJECT: RedmiHealthSync/RedmiHealthSync.xcodeproj
-        XCODE_SCHEME: RedmiHealthSync
       xcode: latest
+
     scripts:
-      - name: Apply signing profiles
-        script: xcode-project use-profiles
-      - name: Build signed IPA
-        script: xcode-project build-ipa --project "$XCODE_PROJECT" --scheme "$XCODE_SCHEME"
+      - name: Check Xcode project
+        script: |
+          cd "$CM_BUILD_DIR"
+          xcodebuild -list -project RedmiHealthSync.xcodeproj
+
+      - name: Build iOS app without signing
+        script: |
+          cd "$CM_BUILD_DIR"
+          xcodebuild \
+            -project RedmiHealthSync.xcodeproj \
+            -scheme RedmiHealthSync \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$CM_BUILD_DIR/build" \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Package unsigned IPA
+        script: |
+          set -e
+          APP_DIR="$CM_BUILD_DIR/build/Build/Products/Release-iphoneos"
+          APP_PATH=$(find "$APP_DIR" -maxdepth 1 -name "*.app" -print -quit)
+          test -n "$APP_PATH"
+          mkdir -p "$CM_BUILD_DIR/Payload"
+          cp -R "$APP_PATH" "$CM_BUILD_DIR/Payload/"
+          cd "$CM_BUILD_DIR"
+          zip -qry RedmiHealthSync-unsigned.ipa Payload
+
     artifacts:
-      - build/ios/ipa/*.ipa
+      - RedmiHealthSync-unsigned.ipa
+      - /tmp/xcodebuild_logs/*.log
